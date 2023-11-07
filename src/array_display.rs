@@ -1,4 +1,4 @@
-use crate::array_general::Array;
+use crate::array_basic::Array;
 use crate::scalar::*;
 // use num_traits::*;
 use std::fmt;
@@ -8,24 +8,24 @@ impl<T: Scalar> fmt::Display for Array<T> {
         let eltype = std::any::type_name::<T>();
         write!(io, "Array<{}, {:?}>:\n", eltype, self.shape)?; // print type info
         match self.shape.len() {
-            1 => {
-                let mut array_string = String::new();
-                for v in self.data.iter() {
-                    array_string += format!("{:^9.6}\n", v).as_str();
-                }
-                write!(io, "{}", array_string)?;
-                Ok(())
-            }
-            2 => Array::display2d(&self, io),
-            _ => {
-                todo!()
-            }
+            1 => self.display1d(io),
+            2 => self.display2d(io),
+            _ => self.display_higher_dimensions(io),
         }
     }
 }
 
 /* implementations for 2d Arrays */
 impl<T: Scalar> Array<T> {
+    pub fn display1d(&self, io: &mut fmt::Formatter) -> fmt::Result {
+        let mut array_string = String::new();
+        for v in self.data.iter() {
+            array_string += format!("{:^9.6}\n", v).as_str();
+        }
+        write!(io, "{}", array_string)?;
+        Ok(())
+    }
+
     /// display 2d Array
     pub fn display2d(&self, io: &mut fmt::Formatter) -> fmt::Result {
         assert!(self.shape.len() == 2);
@@ -56,6 +56,61 @@ impl<T: Scalar> Array<T> {
             array_string += "\n";
         }
         write!(io, "{}", array_string)?;
+        Ok(())
+    }
+
+    fn display_slice(&self, io: &mut fmt::Formatter, slice_indices: &[usize]) -> fmt::Result {
+        let last_two_dims = &self.shape[self.shape.len() - 2..];
+        let rows = last_two_dims[0];
+        let cols = last_two_dims[1];
+
+        for row in 0..rows {
+            for col in 0..cols {
+                let mut indices = slice_indices.to_vec();
+                indices.push(row);
+                indices.push(col);
+                let data_index = self.calculate_data_index_from_array_indices(indices);
+                write!(io, "{:>10.4} ", self.data[data_index])?;
+            }
+            writeln!(io)?; // New line at the end of each row
+        }
+        Ok(())
+    }
+
+    fn display_higher_dimensions(&self, io: &mut fmt::Formatter) -> fmt::Result {
+        // Compute the number of 2D slices
+        let num_slices = self.shape.iter().skip(2).product::<usize>();
+
+        // Iterate over each 2D slice
+        for slice_num in 0..num_slices {
+            // Compute the indices for the higher dimensions
+            let mut higher_dim_indices = Vec::new();
+            let mut remainder = slice_num;
+            for &dim_size in self.shape.iter().skip(2).rev() {
+                higher_dim_indices.push(remainder % dim_size);
+                remainder /= dim_size;
+            }
+            higher_dim_indices.reverse();
+
+            // Write the slice header
+            let indices_str = higher_dim_indices
+                .iter()
+                .map(usize::to_string)
+                .collect::<Vec<_>>()
+                .join(", ");
+            writeln!(io, "[:, :, {}]:", indices_str)?;
+
+            // Display the 2D slice
+            for row in 0..self.shape[0] {
+                for col in 0..self.shape[1] {
+                    let mut indices = vec![row, col];
+                    indices.extend_from_slice(&higher_dim_indices);
+                    let data_index = self.calculate_data_index_from_array_indices(indices);
+                    write!(io, "{:>10.4} ", self.data[data_index])?;
+                }
+                writeln!(io)?;
+            }
+        }
         Ok(())
     }
 }

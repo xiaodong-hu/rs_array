@@ -30,28 +30,28 @@ impl<T: Scalar> Array<T> {
         }
         data_index
     }
-    /// Reshape the array in-place (with consumption).
+    /// Reshape the array by creating a new array
     ///
     /// No clone of data occurs here: only parameter `shape` is changed.
     /// Error if the shape does not match with data
-    pub fn reshape(self, new_shape: Vec<usize>) -> Self {
+    pub fn reshape(&self, new_shape: Vec<usize>) -> Self {
         assert!(new_shape.iter().product::<usize>() == self.data.len());
         Array {
-            data: self.data,
+            data: self.data.clone(),
             shape: new_shape,
         }
     }
-    /// Broadcast closures element-wisely (with consumption).
+    /// Broadcast closures element-wisely by creating a new array
     ///
     /// Here we extend the type condition so that the resultant `Array<U>` can be of different type of the original one `Array<T>`. Example usage:
     /// ```rust
     /// m = matrix![1 2 3; 4 5 6];
     /// m.map(|x| x as f64);
     /// ```
-    pub fn map<U: Scalar, F: Fn(T) -> U>(self, func: F) -> Array<U> {
+    pub fn map<U: Scalar, F: Fn(T) -> U>(&self, func: F) -> Array<U> {
         Array {
-            data: self.data.into_iter().map(func).collect::<Vec<U>>(),
-            shape: self.shape,
+            data: self.data.clone().into_iter().map(func).collect::<Vec<U>>(),
+            shape: self.shape.clone(),
         }
     }
 }

@@ -1,8 +1,8 @@
-use crate::{array_general::*, scalar::Scalar};
+use crate::{array_basic::*, scalar::Scalar};
 // use crate::scalar::*;
 // use num_traits::*;
 
-/* macros */
+/* Macros */
 #[macro_export]
 macro_rules! matrix {
     ( $( $( $x:expr ),+ );+ $(;)? ) => {
@@ -39,12 +39,16 @@ macro_rules! matrix {
     };
 }
 
-/* implementations for array of two dimensions */
+/* Implementations for array of two dimensions */
 impl<T: Scalar> Array<T> {
     /// transpose of **two-dimensional** `Array<T>`
     pub fn transpose(&self) -> Array<T> {
         // Ensure the array is two-dimensional
-        assert_eq!(self.shape.len(), 2, "Array must be 2-dimensional");
+        assert_eq!(
+            self.shape.len(),
+            2,
+            "Transpose is clearly defined only for 2-dimensional Arrays"
+        );
 
         let rows = self.shape[0];
         let cols = self.shape[1];
