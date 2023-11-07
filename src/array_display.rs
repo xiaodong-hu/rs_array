@@ -81,7 +81,7 @@ impl<T: Scalar> Array<T> {
                 .map(usize::to_string)
                 .collect::<Vec<_>>()
                 .join(", ");
-            writeln!(io, "[:, :, {}] = ", indices_str)?;
+            writeln!(io, "\n[:, :, {}] = ", indices_str)?;
 
             // Display the 2D slice
             for row in 0..self.shape[0] {

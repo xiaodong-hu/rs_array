@@ -19,8 +19,12 @@ mod tests {
         let m = matrix![1 2; 3 4; 5 6];
         println!("{m}");
         println!("{}", reshape!(m, 1, 6)); // m is consumed here
-        let m = matrix![2 3 4; 5 6 7];
+
+        let m = matrix![1 2 3; 4 5 6];
         println!("{}", m.map(|x| x * 2)); // m is NOT consumed after map
+        println!("{m}");
+
+        let m = randn!(f64, 4, 3, 2); // multi-dimensional array
         println!("{m}");
     }
 
