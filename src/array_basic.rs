@@ -8,7 +8,7 @@ use std::ops::{Index, IndexMut};
 
 /// ### Array Type of General Dimension
 /// with generic scalar datatype `data: Vec<T: Scalar>` and a runtime dimension of the array `shape: Vec<usize>`.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Array<T: Scalar> {
     pub data: Vec<T>,
     pub shape: Vec<usize>,
@@ -31,13 +31,21 @@ impl<T: Scalar> Array<T> {
         data_index
     }
     /// Reshape the array by creating a new array
-    ///
-    /// No clone of data occurs here: only parameter `shape` is changed.
-    /// Error if the shape does not match with data
     pub fn reshape(&self, new_shape: Vec<usize>) -> Self {
         assert!(new_shape.iter().product::<usize>() == self.data.len());
         Array {
             data: self.data.clone(),
+            shape: new_shape,
+        }
+    }
+    /// Reshape the array in-place
+    ///
+    /// No clone of data occurs here: only parameter `shape` is changed.
+    /// Error if the shape does not match with data
+    pub fn reshape_inplace(self, new_shape: Vec<usize>) -> Self {
+        assert!(new_shape.iter().product::<usize>() == self.data.len());
+        Array {
+            data: self.data,
             shape: new_shape,
         }
     }
@@ -93,7 +101,6 @@ impl<T: Scalar + Sub<Output = T>> Sub for Array<T> {
         }
     }
 }
-
 impl<T: Scalar + Mul<Output = T>> Mul<T> for Array<T> {
     type Output = Self;
     fn mul(self, rhs: T) -> Self::Output {
@@ -166,7 +173,7 @@ macro_rules! randn {
 /// Reshape the multi-dimensional array
 ///
 /// Example usage:
-/// ```rust
+/// ```
 /// let m = Array {
 ///     data: vec![1, 2, 3, 4, 5, 6],
 ///     shape: [2, 3].to_vec(),
@@ -177,7 +184,7 @@ macro_rules! randn {
 macro_rules! reshape {
     ($array:expr, $($dim:expr),+) => {
         {
-            $array.reshape(vec![$($dim),+])
+            $array.reshape_inplace(vec![$($dim),+])
         }
     };
 }
