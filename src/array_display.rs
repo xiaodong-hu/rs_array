@@ -1,5 +1,5 @@
 use crate::array_basic::Array;
-use crate::scalar::*;
+use crate::{calculate_data_index, scalar::*};
 // use num_traits::*;
 use std::fmt;
 
@@ -7,7 +7,7 @@ impl<T: Scalar> fmt::Display for Array<T> {
     fn fmt(&self, io: &mut fmt::Formatter) -> fmt::Result {
         use colored::*;
         let eltype = std::any::type_name::<T>();
-        let array_info = format!("Array<{}, {:?}>:", eltype, self.shape).bold();
+        let array_info = format!("\nArray<{}, {:?}>:", eltype, self.shape).bold();
         write!(io, "{}", array_info)?; // print type info
         match self.shape.len() {
             1 => self.display1d(io),
@@ -34,25 +34,21 @@ impl<T: Scalar> Array<T> {
 
         let row = self.shape[0];
         let col = self.shape[1];
+
+        let decimal_length = 6;
+        let element_interval = 2;
+        let element_length = self.get_element_length_and_interval(decimal_length, element_interval);
+
         let mut array_string = String::new();
-
-        let mut elem_string_length_max = 0;
-        for value in self.data.iter() {
-            let current_string_length = format!("{:>.6}", value).len() as i32 + 2;
-            if current_string_length > elem_string_length_max {
-                elem_string_length_max = current_string_length;
-            }
-        }
-        // dbg!(elem_string_length_max);
-
         for i in 0..row {
             array_string += "\n";
             for j in 0..col {
-                let data_index = self.calculate_data_index_from_array_indices([i, j].to_vec());
+                let data_index = calculate_data_index!(self, &[i, j]);
                 array_string += format!(
-                    "{:>width$.6}",
+                    "{:>element_length$.decimal_length$}",
                     self.data[data_index],
-                    width = elem_string_length_max as usize
+                    element_length = element_length,
+                    decimal_length = decimal_length
                 )
                 .as_str();
             }
@@ -83,13 +79,24 @@ impl<T: Scalar> Array<T> {
                 .join(", ");
             writeln!(io, "\n[:, :, {}] = ", indices_str)?;
 
+            let decimal_length = 6;
+            let element_interval = 2;
+            let element_length =
+                self.get_element_length_and_interval(decimal_length, element_interval);
+
             // Display the 2D slice
             for row in 0..self.shape[0] {
                 for col in 0..self.shape[1] {
                     let mut indices = vec![row, col];
                     indices.extend_from_slice(&higher_dim_indices);
-                    let data_index = self.calculate_data_index_from_array_indices(indices);
-                    write!(io, "{:>10.4} ", self.data[data_index])?;
+                    let data_index = calculate_data_index!(self, &indices);
+                    let elem_string = format!(
+                        "{:>element_length$.decimal_length$}",
+                        self.data[data_index],
+                        element_length = element_length,
+                        decimal_length = decimal_length
+                    );
+                    write!(io, "{elem_string}")?;
                 }
                 writeln!(io)?;
             }
