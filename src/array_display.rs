@@ -3,22 +3,41 @@ use crate::{calculate_data_index, scalar::*};
 // use num_traits::*;
 use std::fmt;
 
-impl<T: Scalar> fmt::Display for Array<T> {
+// impl<T: Scalar> fmt::Display for Array<T, 1> {
+//     fn fmt(&self, io: &mut fmt::Formatter) -> fmt::Result {
+//         use colored::*;
+//         let eltype = std::any::type_name::<T>();
+//         let array_info = format!("\nArray<{}, {:?}>:", eltype, self.shape).bold();
+//         write!(io, "{}", array_info)?; // print type info
+//         self.display1d(io)
+//     }
+// }
+
+// impl<T: Scalar> fmt::Display for Array<T, 2> {
+//     fn fmt(&self, io: &mut fmt::Formatter) -> fmt::Result {
+//         use colored::*;
+//         let eltype = std::any::type_name::<T>();
+//         let array_info = format!("\nArray<{}, {:?}>:", eltype, self.shape).bold();
+//         write!(io, "{}", array_info)?; // print type info
+//         self.display2d(io)
+//     }
+// }
+
+impl<T: Scalar, const D: usize> fmt::Display for Array<T, D> {
     fn fmt(&self, io: &mut fmt::Formatter) -> fmt::Result {
         use colored::*;
         let eltype = std::any::type_name::<T>();
-        let array_info = format!("\nArray<{}, {:?}>:", eltype, self.shape).bold();
+        let array_info = format!(
+            "\n{:?} Array<{}, {:?}>:",
+            self.data_order, eltype, self.shape
+        )
+        .bold();
         write!(io, "{}", array_info)?; // print type info
-        match self.shape.len() {
-            1 => self.display1d(io),
-            2 => self.display2d(io),
-            _ => self.display_higher_dimensions(io),
-        }
+        self.display_higher_dimensions(io)
     }
 }
 
-/* implementations for 2d Arrays */
-impl<T: Scalar> Array<T> {
+impl<T: Scalar> Array<T, 1> {
     pub fn display1d(&self, io: &mut fmt::Formatter) -> fmt::Result {
         let mut array_string = String::new();
         for v in self.data.iter() {
@@ -27,7 +46,9 @@ impl<T: Scalar> Array<T> {
         write!(io, "{}", array_string)?;
         Ok(())
     }
+}
 
+impl<T: Scalar> Array<T, 2> {
     /// display 2d Array
     pub fn display2d(&self, io: &mut fmt::Formatter) -> fmt::Result {
         assert!(self.shape.len() == 2);
@@ -56,7 +77,11 @@ impl<T: Scalar> Array<T> {
         write!(io, "{}", array_string)?;
         Ok(())
     }
+}
 
+/* implementations for 2d Arrays */
+impl<T: Scalar, const D: usize> Array<T, D> {
+    /// display higher dimensional Array
     fn display_higher_dimensions(&self, io: &mut fmt::Formatter) -> fmt::Result {
         let num_of_2d_slices = self.shape.iter().skip(2).product::<usize>(); // skip the first two indices
 

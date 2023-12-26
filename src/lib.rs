@@ -6,7 +6,7 @@ mod array_basic;
 mod array_display;
 mod matrix;
 // mod matrix_simd;
-mod array_slice;
+// mod array_slice;
 mod scalar;
 
 // #[cfg(any(target_arch = "x86", target_arch = "x86_64"))]

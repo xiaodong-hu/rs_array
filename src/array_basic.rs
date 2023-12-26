@@ -2,6 +2,20 @@ use crate::scalar::Scalar;
 // use num_traits::*;
 use std::ops::{Add, Mul, Sub};
 
+#[derive(Debug, Clone, Copy)]
+pub enum DataOrder {
+    RowMajor,
+    ColMajor,
+}
+impl DataOrder {
+    pub fn alternate(&self) -> Self {
+        match self {
+            DataOrder::RowMajor => DataOrder::ColMajor,
+            DataOrder::ColMajor => DataOrder::RowMajor,
+        }
+    }
+}
+
 // ### General Array Container of Arbitrary Dimension
 /// of generic scalar datatype `data: Vec<T: Scalar>` and dimensions `shape: Vec<usize>`.
 ///
@@ -9,43 +23,48 @@ use std::ops::{Add, Mul, Sub};
 ///
 /// The Array is set to be **column-major** by default, meaning that the data of array-position `[i,j,k,...]` is stored at `data_index = i + j * i_length + k * j_length * i_length + ...`. This is the same as the convention of `numpy`, `Fortran`, and `julia`.
 #[derive(Debug, Clone)]
-pub struct Array<T: Scalar> {
+pub struct Array<T: Scalar, const D: usize> {
     pub data: Vec<T>,
-    pub shape: Vec<usize>,
+    pub shape: [usize; D],
+    pub data_order: DataOrder,
 }
 
 /* Method implementations for general dimensions */
-impl<T: Scalar> Array<T> {
+impl<T: Scalar, const D: usize> Array<T, D> {
     /// Reshape by clone
-    pub fn reshape(&self, new_shape: Vec<usize>) -> Self {
+    pub fn reshape(&self, new_shape: [usize; D]) -> Self {
         assert!(new_shape.iter().product::<usize>() == self.data.len());
         Array {
             data: self.data.clone(),
             shape: new_shape,
+            data_order: self.data_order,
         }
     }
     /// Reshape in-place
-    pub fn reshape_inplace(self, new_shape: Vec<usize>) -> Self {
+    pub fn reshape_inplace(self, new_shape: [usize; D]) -> Self {
         assert!(new_shape.iter().product::<usize>() == self.data.len());
         Array {
             data: self.data,
             shape: new_shape,
+            data_order: self.data_order,
         }
     }
     /// Element-wisely Broadcast with closures by clone
     ///
     /// Here we use generics to allow type conversion for data. Example usage: `m.map(|x| x as f64)` for `m` of `Array<i32>`
-    pub fn map<U: Scalar, F: Fn(T) -> U>(&self, func: F) -> Array<U> {
+    pub fn map<U: Scalar, F: Fn(T) -> U>(&self, func: F) -> Array<U, D> {
         Array {
             data: self.data.clone().into_iter().map(func).collect::<Vec<U>>(),
-            shape: self.shape.clone(),
+            shape: self.shape,
+            data_order: self.data_order,
         }
     }
     /// Element-wisely Broadcast with closures in-place
-    pub fn map_inplace<U: Scalar, F: Fn(T) -> U>(self, func: F) -> Array<U> {
+    pub fn map_inplace<U: Scalar, F: Fn(T) -> U>(self, func: F) -> Array<U, D> {
         Array {
             data: self.data.into_iter().map(func).collect::<Vec<U>>(),
             shape: self.shape,
+            data_order: self.data_order,
         }
     }
     /// Get the maximum string length for the element: also work for future symbolic variables!
@@ -67,8 +86,8 @@ impl<T: Scalar> Array<T> {
 
 /* Trait implementations for general dimensions */
 /// array addition by clone, namely `&A+&B` create a new array: both `A` and `B` are not consumed
-impl<T: Scalar + Add<Output = T>> Add for &Array<T> {
-    type Output = Array<T>;
+impl<T: Scalar + Add<Output = T>, const D: usize> Add for &Array<T, D> {
+    type Output = Array<T, D>;
     fn add(self, rhs: Self) -> Self::Output {
         assert!(
             self.shape.iter().eq(rhs.shape.iter()),
@@ -82,12 +101,13 @@ impl<T: Scalar + Add<Output = T>> Add for &Array<T> {
             .collect();
         Array {
             data: res_data,
-            shape: self.shape.clone(),
+            shape: self.shape,
+            data_order: self.data_order,
         }
     }
 }
 /// array addition in-place, namely `A+B` consume both `A` and `B` and the resultant is stored in `A`
-impl<T: Scalar + Add<Output = T>> Add for Array<T> {
+impl<T: Scalar + Add<Output = T>, const D: usize> Add for Array<T, D> {
     type Output = Self;
     fn add(mut self, rhs: Self) -> Self::Output {
         assert!(self.shape == rhs.shape, "Dimension Mismatch!");
@@ -98,8 +118,8 @@ impl<T: Scalar + Add<Output = T>> Add for Array<T> {
     }
 }
 /// array substraction by clone, namely `&A-&B` create a new array: both `A` and `B` are not consumed
-impl<T: Scalar + Sub<Output = T>> Sub for &Array<T> {
-    type Output = Array<T>;
+impl<T: Scalar + Sub<Output = T>, const D: usize> Sub for &Array<T, D> {
+    type Output = Array<T, D>;
     fn sub(self, rhs: Self) -> Self::Output {
         assert!(
             self.shape.iter().eq(rhs.shape.iter()),
@@ -113,12 +133,13 @@ impl<T: Scalar + Sub<Output = T>> Sub for &Array<T> {
             .collect();
         Array {
             data: res_data,
-            shape: self.shape.clone(),
+            shape: self.shape,
+            data_order: self.data_order,
         }
     }
 }
 /// array subtraction in-place, namely `A+B` consume both `A` and `B` and the resultant is stored in `A`
-impl<T: Scalar + Sub<Output = T>> Sub for Array<T> {
+impl<T: Scalar + Sub<Output = T>, const D: usize> Sub for Array<T, D> {
     type Output = Self;
     fn sub(mut self, rhs: Self) -> Self::Output {
         assert!(self.shape == rhs.shape, "Dimension Mismatch!");
@@ -136,13 +157,26 @@ impl<T: Scalar + Sub<Output = T>> Sub for Array<T> {
 #[macro_export]
 macro_rules! calculate_data_index {
     ($array:expr, $indices:expr) => {{
+        assert!($indices.len() == $array.shape.len()); // ensure the number of indices is equal to the dimension of array
+        assert!($indices.len() > 0);
+
         let mut data_index = 0;
         let mut product = 1;
-        for (current_dim, &current_index) in $indices.iter().enumerate() {
-            data_index += current_index * product;
-            product *= $array.shape[current_dim];
+        match $indices.len() {
+            1 => {
+                data_index = $indices[0];
+            }
+            2 => {
+                data_index = $indices[0] + $indices[1] * $array.shape[0];
+            }
+            _ => {
+                for (current_dim, &current_index) in $indices.iter().enumerate() {
+                    data_index += current_index * product;
+                    product *= $array.shape[current_dim];
+                }
+                assert!(data_index < $array.data.len()); // ensure the index is within the range of data
+            }
         }
-        assert!(data_index < $array.data.len()); // ensure the index is within the range of data
         data_index
     }};
 }
@@ -160,6 +194,7 @@ macro_rules! zeros {
             Array {
                 data: vec![<$type as Scalar>::Zero; data_length], // syntax <Type as Trait> is used for specifying trait bounds
                 shape,
+                data_order: DataOrder::ColMajor,
             }
         }
     };
@@ -175,6 +210,7 @@ macro_rules! ones {
             Array {
                 data: vec![<$type as Scalar>::One; data_length], // syntax <Type as Trait> is used for specifying trait bounds
                 shape,
+                data_order: DataOrder::ColMajor,
             }
         }
     };
@@ -189,11 +225,12 @@ macro_rules! randn {
             use rand::Rng;
             use crate::array_basic::*;
             let mut rng = rand::thread_rng();
-            let shape = vec![$($dim),+];
+            let shape = [$($dim),+];
             let data_length = shape.iter().product();
             Array {
                 data: (0..data_length).map(|_| rng.gen::<$type>()).collect(),
                 shape,
+                data_order: DataOrder::ColMajor,
             }
         }
     };
@@ -206,7 +243,7 @@ macro_rules! randn {
 macro_rules! reshape {
     ($array:expr, $($dim:expr),+) => {
         {
-            $array.reshape_inplace(vec![$($dim),+])
+            $array.reshape_inplace([$($dim),+])
         }
     };
 }

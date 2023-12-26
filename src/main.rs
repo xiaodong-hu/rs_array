@@ -8,7 +8,7 @@ mod array_basic;
 mod array_display;
 mod matrix;
 // mod matrix_simd;
-mod array_slice;
+// mod array_slice;
 mod scalar;
 
 // use rayon::prelude::*;
@@ -24,7 +24,7 @@ fn dot_simd(lhs: &[f64], rhs: &[f64]) -> f64 {
     // // Process in chunks of SIMD_WIDTH
     // let mut index: usize = 0; // chunk index
     let residule_len = lhs_len % SIMD_WIDTH;
-    let mut res = lhs
+    let res = lhs
         .chunks_exact(SIMD_WIDTH)
         .map(Simd::from_slice)
         .zip(rhs.chunks_exact(SIMD_WIDTH).map(Simd::from_slice))
@@ -47,20 +47,24 @@ fn dot_simd(lhs: &[f64], rhs: &[f64]) -> f64 {
 }
 
 fn main() {
-    let m1 = randn!(f64, 25);
-    let m2 = randn!(f64, 25);
-
-    let m1 = m1.data;
-    let m2 = m2.data;
+    let n = 4;
+    let m1 = randn!(f64, n, n);
+    let m2 = randn!(f64, n, n);
 
     time_block![{
-        let res = m1.iter().zip(m2.iter()).map(|(a, b)| a * b).sum::<f64>();
-        // println!("{res}");
+        let res = m1.transpose();
     }];
 
-    time_block![{
-        let res = dot_simd(&m1, &m2);
-        // println!("{res}")
-    }];
+    println!("{}\n{}", m1, m1.transpose());
+
+    // time_block![{
+    //     let res = m1.iter().zip(m2.iter()).map(|(a, b)| a * b).sum::<f64>();
+    //     // println!("{res}");
+    // }];
+
+    // time_block![{
+    //     let res = dot_simd(&m1, &m2);
+    //     // println!("{res}")
+    // }];
     // println!("test");
 }

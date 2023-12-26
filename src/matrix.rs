@@ -21,8 +21,9 @@ macro_rules! matrix {
             let array = Array {
                 data,
                 shape: vec![col_len,row_len],
+                data_order: DataOrder::RowMajor,
             };
-            array.transpose()
+            array
         }
     };
     ( $( $( $x:expr ) + );+ $(;)? ) => {
@@ -36,51 +37,54 @@ macro_rules! matrix {
             let data = vec![$( $($x),+ ),*];
             let array = Array {
                 data,
-                shape: vec![col_len,row_len],
+                shape: [col_len,row_len],
+                data_order: DataOrder::RowMajor,
             };
-            array.transpose()
+            array
         }
     };
 }
 
 /* Implementations for array of two dimensions, i.e., Matrices */
-impl<T: Scalar> Array<T> {
-    /// check matrix dimension
-    #[inline]
-    fn matrix_dimension_check(&self) {
-        assert_eq!(self.shape.len(), 2, "Check Input: Dimension Mismatch!");
-    }
-
+impl<T: Scalar> Array<T, 2> {
     /// transpose of **two-dimensional** `Array<T>`
-    pub fn transpose(&self) -> Array<T> {
-        // ensure the array is two-dimensional
-        self.matrix_dimension_check();
-        let mut res_data = Vec::<T>::with_capacity(self.data.len());
-        for j in 0..self.shape[1] {
-            for i in 0..self.shape[0] {
-                let index = calculate_data_index!(self, [i, j]);
-                res_data.push(self.data[index].clone());
-            }
-        }
+    pub fn transpose(&self) -> Array<T, 2> {
+        // let mut res_data = Vec::<T>::with_capacity(self.data.len());
+        let mut res_data = self.data.clone();
+        let (rows, cols) = (self.shape[0], self.shape[1]);
+
+        // for i in 0..rows {
+        //     for j in 0..cols {
+        //         let original_index = i + j * rows;
+        //         let transposed_index = j + i * cols;
+        //         res_data[transposed_index] = self.data[original_index].clone();
+        //     }
+        // }
+
+        // for i in 0..rows {
+        //     for j in 0..cols {
+        //         let index = calculate_data_index!(self, [i, j]);
+        //         res_data.push(self.data[index].clone());
+        //     }
+        // }
         Array {
-            data: res_data,
-            shape: vec![self.shape[1], self.shape[0]],
+            data: self.data.clone(),
+            shape: [cols, rows],
+            data_order: self.data_order.alternate(),
         }
     }
 }
 
 // Mul<Output = T> + Add<Output = T>
-impl<T: Scalar + Arithmetic<T>> Array<T> {
+impl<T: Scalar + Arithmetic<T>> Array<T, 2> {
     /// check dimension and multiplication relevant length
     #[inline]
-    fn matrix_multiplication_check(lhs: &Array<T>, rhs: &Array<T>) {
-        lhs.matrix_dimension_check();
-        rhs.matrix_dimension_check();
+    fn matrix_multiplication_check(lhs: &Array<T, 2>, rhs: &Array<T, 2>) {
         assert!(lhs.shape[1] == rhs.shape[0]);
     }
 
     /// Naive `O(n^3)` multiplication
-    pub fn mul_naive(&self, rhs: &Array<T>) -> Array<T> {
+    pub fn mul_naive(&self, rhs: &Array<T, 2>) -> Array<T, 2> {
         Array::matrix_multiplication_check(self, rhs);
 
         let (res_row, res_col) = (self.shape[0], self.shape[1]);
@@ -103,23 +107,24 @@ impl<T: Scalar + Arithmetic<T>> Array<T> {
         }
         Array {
             data: res_data,
-            shape: vec![res_row, res_col],
+            shape: [res_row, res_col],
+            data_order: self.data_order,
         }
     }
 
     /// Strassen algorithm of matrix multiplcation, complexity `O(n^{log_2 7})=O(n^{2.807})`
-    pub fn mul_strassen(&self, rhs: &Array<T>) -> Array<T> {
+    pub fn mul_strassen(&self, rhs: &Array<T, 2>) -> Array<T, 2> {
         Array::matrix_multiplication_check(self, rhs);
         todo!()
     }
 
     /// SVD
-    pub fn svd(&self) -> (Array<T>, Array<T>, Array<T>) {
+    pub fn svd(&self) -> (Array<T, 2>, Array<T, 2>, Array<T, 2>) {
         todo!()
     }
 
     /// QR
-    pub fn qr(&self) -> (Array<T>, Array<T>) {
+    pub fn qr(&self) -> (Array<T, 2>, Array<T, 2>) {
         todo!()
     }
 }
